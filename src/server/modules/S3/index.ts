@@ -108,14 +108,13 @@ public async createPreSignedUrl(key: string, contentType?: string): Promise<stri
   });
 
   // 使用更明确的签名选项
-  return getSignedUrl(this.client, command, { 
-    expiresIn: 3600,
-    signableHeaders: new Set(['host', 'content-type']),
-    // R2 推荐的设置
-    signingRegion: 'auto',
-    forcePathStyle: true
-})
-};
+return getSignedUrl(this.client, command, { 
+  expiresIn: 3600,
+  forcePathStyle: true,  // 移到前面
+  signableHeaders: new Set(['host', 'content-type']),
+  signingRegion: 'auto'
+});
+}
 
 
 
