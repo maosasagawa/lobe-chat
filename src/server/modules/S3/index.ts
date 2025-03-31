@@ -98,15 +98,25 @@ export class S3 {
     return response.Body.transformToByteArray();
   }
 
-  public async createPreSignedUrl(key: string): Promise<string> {
-    const command = new PutObjectCommand({
-      ACL: this.setAcl ? 'public-read' : undefined,
-      Bucket: this.bucket,
-      Key: key,
-    });
+public async createPreSignedUrl(key: string, contentType?: string): Promise<string> {
+  // 创建基础命令
+  const command = new PutObjectCommand({
+    ACL: this.setAcl ? 'public-read' : undefined,
+    Bucket: this.bucket,
+    Key: key,
+    ContentType: contentType || 'application/octet-stream',
+  });
 
-    return getSignedUrl(this.client, command, { expiresIn: 3600 });
-  }
+  // 使用更明确的签名选项
+  return getSignedUrl(this.client, command, { 
+    expiresIn: 3600,
+    // 如果SDK支持，可以指定要包含在签名中的头部
+    signableHeaders: new Set(['host', 'content-type']),
+    // 对于R2，可能需要设置为 'UNSIGNED-PAYLOAD'
+    unsignedBody: true
+  });
+}
+
 
   public async createPreSignedUrlForPreview(key: string, expiresIn?: number): Promise<string> {
     const command = new GetObjectCommand({
