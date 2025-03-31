@@ -103,8 +103,8 @@ public async createPreSignedUrl(key: string, contentType?: string): Promise<stri
   const command = new PutObjectCommand({
     ACL: this.setAcl ? 'public-read' : undefined,
     Bucket: this.bucket,
-    Key: key,
     ContentType: contentType || 'application/octet-stream',
+    Key: key,
   });
 
   // 使用更明确的签名选项
