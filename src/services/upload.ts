@@ -91,62 +91,44 @@ class UploadService {
   };
 
   uploadWithProgress = async (
-    file: File,
-    {
-      onProgress,
-      directory,
-    }: {
-      directory?: string;
-      onProgress?: (status: FileUploadStatus, state: FileUploadState) => void;
-    },
-  ): Promise<FileMetadata> => {
-    const xhr = new XMLHttpRequest();
+  file: File,
+  {
+    onProgress,
+    directory,
+  }: {
+    directory?: string;
+    onProgress?: (status: FileUploadStatus, state: FileUploadState) => void;
+  },
+): Promise<FileMetadata> => {
+  const { preSignUrl, ...result } = await this.getSignedUploadUrl(file, directory);
+  const startTime = Date.now();
 
-    const { preSignUrl, ...result } = await this.getSignedUploadUrl(file, directory);
-    let startTime = Date.now();
-    xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable) {
-        const progress = Number(((event.loaded / event.total) * 100).toFixed(1));
-
-        const speedInByte = event.loaded / ((Date.now() - startTime) / 1000);
-
-        onProgress?.('uploading', {
-          // if the progress is 100, it means the file is uploaded
-          // but the server is still processing it
-          // so make it as 99.9 and let users think it's still uploading
-          progress: progress === 100 ? 99.9 : progress,
-          restTime: (event.total - event.loaded) / speedInByte,
-          speed: speedInByte,
-        });
-      }
+  try {
+    // 使用fetch API而非XHR
+    const response = await fetch(preSignUrl, {
+      method: 'PUT',
+      body: file,
+      // 不要添加额外头部，除非确认签名包含它们
     });
 
-    xhr.open('PUT', preSignUrl);
-    xhr.setRequestHeader('Content-Type', file.type);
-    const data = await file.arrayBuffer();
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status} ${await response.text()}`);
+    }
 
-    await new Promise((resolve, reject) => {
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          onProgress?.('success', {
-            progress: 100,
-            restTime: 0,
-            speed: file.size / ((Date.now() - startTime) / 1000),
-          });
-          resolve(xhr.response);
-        } else {
-          reject(xhr.statusText);
-        }
-      });
-      xhr.addEventListener('error', () => {
-        if (xhr.status === 0) reject(UPLOAD_NETWORK_ERROR);
-        else reject(xhr.statusText);
-      });
-      xhr.send(data);
+    onProgress?.('success', {
+      progress: 100,
+      restTime: 0,
+      speed: file.size / ((Date.now() - startTime) / 1000),
     });
 
     return result;
-  };
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('network')) {
+      throw new Error(UPLOAD_NETWORK_ERROR);
+    }
+    throw error;
+  }
+}
 
   uploadToClientS3 = async (hash: string, file: File): Promise<FileMetadata> => {
     await clientS3Storage.putObject(hash, file);
