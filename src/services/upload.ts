@@ -106,8 +106,9 @@ class UploadService {
   try {
     // 使用fetch API而非XHR
     const response = await fetch(preSignUrl, {
-      method: 'PUT',
       body: file,
+      method: 'PUT',
+
       // 不要添加额外头部，除非确认签名包含它们
     });
 
